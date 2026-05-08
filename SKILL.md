@@ -13,7 +13,7 @@ This skill turns annual reports, quarterly results, and concall transcripts into
 
 **Read the documents — don't guess from memory.** If the user uploaded files, the analysis must be grounded in those files. Quote sparingly but specifically: "Management said in Q2 FY26 concall that they expect 14-15% EBITDA margin by FY27, vs ~11% currently." Do not invent numbers. If you don't have a number from the filings, say so explicitly rather than estimating.
 
-**When the user names a stock without uploads.** Prefer asking for the actual filings (latest AR, last 4 concalls, recent QRs) — full-context analysis is much higher quality. As a fallback, web_search is OK for: latest quarter results that just dropped, recent news/regulatory actions, and macro/sector context. Do NOT use web_search for historical financials, segment trajectory, RPT, contingent liab, CARO, auditor commentary, or anything that should come from primary filings. Always note in the output which parts came from filings vs. web vs. neither.
+**When the user names a stock without uploads.** Don't ask for PDFs — auto-fetch from `screener.in/company/<TICKER>/` using the playbook in `references/screener-auto-fetch.md`. Always confirm the file set with the user before fetching, save pulls to `~/Documents/equity-research/<TICKER>/` per the folder layout in that playbook, and check the cache before re-fetching. Use web_search only for very recent news / regulatory actions that postdate the latest filing on Screener. Do NOT use web_search for historical financials, segment trajectory, RPT, contingent liab, CARO, auditor commentary, or anything that should come from primary filings. Always source-label every claim in the output (`[AR-FY25]`, `[Concall-Q4FY26]`, `[Screener-quant]`, `[Web-search]`, `[Inferred]`).
 
 **Resolve conflicts between sources by type:**
 - **Forward-looking statements** (guidance, capex plans, demand commentary): weight by recency — latest concall > latest investor presentation > latest QR commentary > AR Director's Report. The world moves between an AR (often 6+ months old) and the latest concall.
@@ -29,6 +29,12 @@ This skill turns annual reports, quarterly results, and concall transcripts into
 **Cross-reference what management said vs what they delivered.** This is the single highest-signal exercise. Pull guidance from a previous concall and check the latest results against it. Patterns of consistent over-delivery, meeting guidance, or routinely missing it tell you more about management than any qualitative description.
 
 ## Workflow
+
+### 0. Auto-fetch the standard file set (when no uploads)
+
+If the user named an Indian listed company without attaching files, run the Screener auto-fetch playbook in `references/screener-auto-fetch.md` before anything else. The playbook covers: confirming the file set with the user, tier-based selection adapted to company size/maturity, the `~/Documents/equity-research/<TICKER>/` folder layout, INDEX.md generation, and the 7-day cache rule. Once files are in the ticker folder, proceed to Step 1 with them as inputs.
+
+If the user already uploaded files, skip Step 0 and go straight to Step 1.
 
 ### 1. Inventory the inputs
 
