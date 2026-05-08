@@ -4,7 +4,7 @@ A [Claude Code](https://docs.claude.com/en/docs/claude-code) skill for building 
 
 The skill turns annual reports, quarterly results, and earnings concall transcripts into a structured opinion on **business quality, management quality, growth runway, and red flags** — through an Indian governance lens (SEBI/MCA disclosures, CARO 2020, related party transactions, promoter pledging, contingent liabilities, etc.).
 
-It is deliberately **qualitative**: no DCF, no fair value, no target price.
+Output is opinionated. The qualitative core covers business / management / red flags; an optional **valuation overlay** runs disciplined ratio-based math (PE, EV/EBITDA, P/B, scenario-based forward EPS, implied price band, quality-of-earnings adjustment, asymmetry vs CMP) when a current market price is provided. It stops short of single-point DCF intrinsic values or "buy at exactly ₹X" target prices — those imply false precision.
 
 ## What it does
 
@@ -13,10 +13,12 @@ It is deliberately **qualitative**: no DCF, no fair value, no target price.
 - Cross-references **what management said vs what they delivered** across past concalls
 - Flags governance issues: RPT patterns, auditor remarks, contingent liabilities, ESOP dilution, promoter pledging, subsidiary opacity
 - Produces an opinionated bull/bear thesis with explicit conviction level
+- When a CMP is provided: trailing/forward multiples, scenario-based forward EPS (full P&L walk), multiple-band reasoning anchored to peers/growth/quality discounts, implied price band, owner's-earnings reconstruction, asymmetry call vs CMP
 
 ## What it does NOT do
 
-- DCF / fair value / intrinsic value modeling
+- DCF / DDM / single-point intrinsic value modeling
+- "Buy at exactly ₹X" target prices or position-sizing advice
 - Technical analysis or F&O strategies
 - IPO grey market chatter or mutual fund picks
 - US/global equities (Indian listed companies only)
@@ -59,6 +61,7 @@ equity-research-india/
     ├── concall-analysis.md           # How to read concalls (prepared remarks vs Q&A)
     ├── peer-comparison.md            # Indian peer/sector comparison frame
     ├── red-flags-india.md            # Indian-specific governance red flags
+    ├── valuation-math.md             # 6-step ratio-based valuation framework with scenario bands
     └── master-report-template.md     # Output template for the final thesis
 ```
 
@@ -68,6 +71,7 @@ equity-research-india/
 - *"Should I invest in Bajaj Finance? Pull the last 4 concalls and tell me the case for and against."*
 - *"What are the red flags in this Adani Ports AR?"*
 - *"Compare Tata Motors and Mahindra & Mahindra on capital allocation."*
+- *"Is GSM Foils cheap at ₹205?"* (triggers the valuation snapshot — needs CMP, share count, debt, cash, TTM PAT/EBITDA, easiest from `screener.in/company/<TICKER>/`)
 
 ## License
 

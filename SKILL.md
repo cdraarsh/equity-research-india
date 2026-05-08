@@ -5,7 +5,7 @@ description: Build qualitative investment theses on Indian listed companies by s
 
 # Equity Research — Indian Listed Companies
 
-This skill turns annual reports, quarterly results, and concall transcripts into a structured qualitative investment thesis with an Indian governance lens. The output is opinionated but stops short of fair value / DCF — the goal is to help the user form a view on **business quality, management quality, growth runway, and red flags**, not to compute a target price.
+This skill turns annual reports, quarterly results, and concall transcripts into a structured qualitative investment thesis with an Indian governance lens, plus disciplined ratio-based valuation when a current market price is available. The output is opinionated. The qualitative read covers **business quality, management quality, growth runway, and red flags**; the valuation overlay produces trailing/forward multiples, scenario-based forward EPS, an implied price band, and an asymmetry call vs CMP. It stops short of single-point DCF intrinsic values or "buy at exactly ₹X" target prices — those imply false precision.
 
 ## Operating principles
 
@@ -22,7 +22,9 @@ This skill turns annual reports, quarterly results, and concall transcripts into
 
 **Indian context is the default lens.** This means: SEBI/MCA disclosures, CARO 2020 auditor remarks, related party transactions, promoter shareholding and pledging, subsidiary structure (especially listed-vs-unlisted subs, foreign subs, holding co discount), contingent liabilities (tax disputes are a big one in India), capex announcements vs follow-through, ESOP dilution patterns, regulatory exposure to specific Indian regulators (RBI for NBFCs/banks, IRDAI for insurance, BIS, CDSCO, RERA, GST, etc.), and family/promoter governance dynamics.
 
-**Qualitative does not mean number-free.** Use numbers to show direction and trajectory — margin going from 14% → 16% → 17% over three years matters. Avoid: forecasting future earnings, computing intrinsic value, or recommending an entry price. The output is a thesis, not a buy/sell call with a target.
+**Qualitative does not mean number-free.** Use numbers to show direction and trajectory — margin going from 14% → 16% → 17% over three years matters. Numbers ground the thesis; they don't replace it.
+
+**Valuation math is in scope, but with discipline.** When the user provides a current market price (or asks "is it cheap" / "should I buy at ₹X" / "what's a fair price"), compute trailing + forward ratios (PE, EV/EBITDA, P/B), generate scenario-based forward EPS (bear/base/bull walked through the full P&L), produce an implied price band, run a quality-of-earnings adjustment (PAT vs owner's earnings), and call the asymmetry vs CMP. Do NOT produce single-point DCF intrinsic values, "buy at exactly ₹X" target prices, technical/chart-based timing, or position-sizing advice. The output is a **price band with asymmetry assessment**, not a target price. See `references/valuation-math.md` for the full framework. Note: the business-quality verdict (section 10 of the master report) and the price-asymmetry call (section 8) can disagree — when they do, name the disagreement explicitly rather than papering over it.
 
 **Cross-reference what management said vs what they delivered.** This is the single highest-signal exercise. Pull guidance from a previous concall and check the latest results against it. Patterns of consistent over-delivery, meeting guidance, or routinely missing it tell you more about management than any qualitative description.
 
@@ -72,6 +74,14 @@ India has its own flavor of governance issues. See `references/red-flags-india.m
 
 See `references/peer-comparison.md` for the framework. The basic move: pick 2-4 closest peers, compare on growth, margin trajectory, balance sheet health, management quality, capital allocation, and positioning. Tables work well here.
 
+### 6.5. Run the valuation math (if CMP is available or user asks)
+
+See `references/valuation-math.md` for the 6-step framework: per-share translation → trailing/forward ratios → multiple band → implied price ranges → quality-of-earnings adjustment → asymmetry vs CMP.
+
+Required inputs (don't guess these): CMP, post-dilution share count, total debt, cash, TTM PAT, TTM EBITDA. If the user hasn't provided them, ask them to paste from `screener.in/company/<TICKER>/` — that's the canonical source.
+
+Run this step by default when the user says "is it cheap", "is this a buy", "should I buy at ₹X", "fair value", or after the qualitative thesis is complete and the user provides a CMP. Skip cleanly if the user explicitly only wants the qualitative read.
+
 ### 7. Produce the master report
 
 The master report is the primary output. Use the structure in `references/master-report-template.md` — it has the full template with section-by-section guidance. The default sections are:
@@ -83,8 +93,9 @@ The master report is the primary output. Use the structure in `references/master
 5. **Financial trajectory (qualitative)** — direction of margins, working capital, debt, return ratios, capex intensity. Use 3-5 year direction, not point estimates.
 6. **Red flags** — Indian governance lens, anything material from CARO/RPT/contingent liab
 7. **Investment thesis** — bull case, base case, bear case, with the analytical stance: which case wins and why, with reasoning
-8. **Peer comparison** — only if requested or clearly needed; table format
-9. **Verdict** — one of four discrete buckets (*Interesting — worth owning / Watchlist — wait for [X] / Avoid for now / Pass — structural concerns*) plus a one-line elevator-pitch summary and 1-2 things to watch in the next 1-2 quarters that would confirm or break the call
+8. **Valuation snapshot** — trailing & forward ratios, scenario forward EPS, multiple-band reasoning, implied price band, quality-of-earnings adjustment, asymmetry vs CMP. See `references/valuation-math.md`. Run only when CMP and the inputs are available; skip cleanly if not.
+9. **Peer comparison** — only if requested or clearly needed; table format
+10. **Verdict** — one of four discrete buckets (*Interesting — worth owning / Watchlist — wait for [X] / Avoid for now / Pass — structural concerns*) plus a one-line elevator-pitch summary and 1-2 things to watch in the next 1-2 quarters that would confirm or break the call. The verdict is about the **business**; the price-asymmetry call lives in section 8 and is allowed to disagree.
 
 When the user asks for a smaller output (e.g., "just the red flags" or "just the management read"), produce only that section — don't force the full report.
 
@@ -94,12 +105,13 @@ The user can ask for several output shapes. Default to the master report unless 
 
 | Ask | Format |
 |-----|--------|
-| "thesis on X", "should I invest", "deep dive" | Full master report |
+| "thesis on X", "should I invest", "deep dive" | Full master report (run valuation snapshot too if CMP is available) |
 | "bull/bear case on X" | Bull / base / bear scorecard only (section 7) |
 | "any red flags in this AR" | Red flags section only |
 | "what did management say" / "concall takeaways" | Management assessment + key concall pulls |
 | "compare X vs Y" | Peer comparison table + one-paragraph verdict per company |
 | "checklist on X" | Numbered checklist covering segments, capex, working capital, debt, guidance vs delivery, etc. |
+| "is it cheap" / "fair value" / "should I buy at ₹X" / "what's the math at this price" | Valuation snapshot only (section 8 of master report). See `references/valuation-math.md`. Preface with a 2-line company snapshot so the inputs aren't free-floating. |
 
 The "combined master report" requested format is the default — it includes everything above as sections, with peer comparison appended when the user gave you peers to compare against.
 

@@ -2,7 +2,7 @@
 
 This is the default output structure for a full thesis. Treat it as a frame, not a rigid form — if a section has nothing material to say for a particular company, condense it; if a section has unusual depth, expand it.
 
-The report is opinionated and qualitative. No fair value, no target price.
+The report is opinionated. The qualitative core (sections 1–7, 9, 10) doesn't do DCF or single-point fair value. Section 8 (Valuation snapshot) does basic ratio-based valuation with scenario bands when a CMP and the required inputs are available — it produces a price band and asymmetry call, not a target price. Skip section 8 cleanly if no CMP is available.
 
 ## Format
 
@@ -103,19 +103,36 @@ The opinionated section — the analytical stance with full reasoning. Three sub
 
 **Bear case.** What breaks the story. Specific, not generic. "Customer concentration risk if top 2 clients renegotiate terms" beats "macro slowdown."
 
-**The analytical stance.** End with which case you lean toward and the reasoning — typically a paragraph or two. Take a side. Identify what evidence pushed you there. Note what specific developments would force you to update toward another case. This is the long-form reasoned stance; section 9's verdict will compress it into a discrete bucket.
+**The analytical stance.** End with which case you lean toward and the reasoning — typically a paragraph or two. Take a side. Identify what evidence pushed you there. Note what specific developments would force you to update toward another case. This is the long-form reasoned stance; section 10's verdict will compress it into a discrete bucket.
 
 ---
 
-### 8. Peer comparison (only if requested or clearly needed)
+### 8. Valuation snapshot (only if CMP and the required inputs are available)
+
+Use the framework in `valuation-math.md`. Skip cleanly if the user hasn't provided a current market price and the input fundamentals (debt, cash, share count post-dilution, TTM PAT/EBITDA), or if the user explicitly only wants the qualitative read.
+
+When run, this section produces:
+- An inputs block (CMP, market cap, shares post-dilution, debt, cash, TTM PAT/EBITDA, with date and source)
+- Trailing ratios table (PE, EV/EBITDA, P/B, ROCE, ROE, with sector median where useful)
+- Forward EPS scenarios (bear / base / bull) with the full P&L walk for each — Revenue × EBITDA% → EBITDA → less D&A and Finance cost → PBT → less Tax → PAT → ÷ shares
+- Multiple band reasoning (one paragraph anchoring multiples to peers + growth + quality discounts)
+- Implied price band table (multiple × EPS for each scenario, with % vs CMP)
+- Quality-of-earnings adjustment (reconstruct owner's earnings; flag any material PAT-vs-cash gap)
+- Asymmetry call (one or two sentences — what the math says about price vs fundamentals)
+
+The asymmetry call here is about **price** and is allowed to disagree with section 10's **business** verdict. When they disagree, name the disagreement explicitly — that nuance is often the most valuable part of the analysis.
+
+---
+
+### 9. Peer comparison (only if requested or clearly needed)
 
 Use the framework in `peer-comparison.md`. Table + one-paragraph verdict per company.
 
 ---
 
-### 9. Verdict
+### 10. Verdict
 
-The compressed elevator-pitch version of section 7. Two parts:
+The compressed elevator-pitch version of section 7, focused on the **business** call (not the price call — that lives in section 8). Two parts:
 
 **The bucket.** Pick exactly one — these are deliberately discrete to force a stance:
 
