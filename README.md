@@ -8,11 +8,13 @@ Output is opinionated. The qualitative core covers business / management / red f
 
 ## What it does
 
+- **Auto-fetches filings from Screener.in when you give it a ticker** — annual reports, concall transcripts, investor presentations, plus a 10-yr financials scrape. No PDF uploads required. Tier-based selection adapts to company size (large-cap → SME). Saves to `~/Documents/equity-research/<TICKER>/` and caches for 7 days.
 - Inventories filings (AR, QR, investor decks, concall transcripts) and reads them rather than guessing from memory
 - Extracts segment trajectory, margin direction, capex follow-through, working capital trends
 - Cross-references **what management said vs what they delivered** across past concalls
 - Flags governance issues: RPT patterns, auditor remarks, contingent liabilities, ESOP dilution, promoter pledging, subsidiary opacity
 - Produces an opinionated bull/bear thesis with explicit conviction level
+- Source-labels every claim (`[AR-FY25]`, `[Concall-Q4FY26]`, `[Screener-quant]`, `[Web-search]`, `[Inferred]`) so primary filings vs. derived analysis are always distinguishable
 - When a CMP is provided: trailing/forward multiples, scenario-based forward EPS (full P&L walk), multiple-band reasoning anchored to peers/growth/quality discounts, implied price band, owner's-earnings reconstruction, asymmetry call vs CMP
 
 ## What it does NOT do
@@ -62,16 +64,18 @@ equity-research-india/
     ├── peer-comparison.md            # Indian peer/sector comparison frame
     ├── red-flags-india.md            # Indian-specific governance red flags
     ├── valuation-math.md             # 6-step ratio-based valuation framework with scenario bands
+    ├── screener-auto-fetch.md        # Ticker-only flow: tier-based file selection, folder layout, cache
     └── master-report-template.md     # Output template for the final thesis
 ```
 
 ## Example prompts
 
-- *"Here's the Asian Paints FY25 annual report. Build me a thesis."*
+- *"Thesis on GSM Foils."* — ticker alone triggers Screener auto-fetch (skill confirms the file set, downloads ARs / concalls / IP, then reads them)
+- *"Here's the Asian Paints FY25 annual report. Build me a thesis."* — uploaded PDFs short-circuit the auto-fetch
 - *"Should I invest in Bajaj Finance? Pull the last 4 concalls and tell me the case for and against."*
 - *"What are the red flags in this Adani Ports AR?"*
 - *"Compare Tata Motors and Mahindra & Mahindra on capital allocation."*
-- *"Is GSM Foils cheap at ₹205?"* (triggers the valuation snapshot — needs CMP, share count, debt, cash, TTM PAT/EBITDA, easiest from `screener.in/company/<TICKER>/`)
+- *"Is GSM Foils cheap at ₹205?"* (triggers the valuation snapshot — auto-fetches CMP/financials from `screener.in/company/<TICKER>/`)
 
 ## License
 
