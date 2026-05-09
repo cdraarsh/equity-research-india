@@ -31,10 +31,47 @@ Reasons to confirm rather than silent-fetch:
 
 ## 3. Fetch sequence
 
-1. `WebFetch` the Screener page first to enumerate available files. The page lists ARs, concall transcripts, investor presentations, and announcements with their actual URLs (which point to NSE/BSE archives).
+1. `WebFetch` the Screener page first to enumerate available files. The page lists ARs, concall transcripts, investor presentations, and announcements with their actual URLs (which point to NSE/BSE archives). Use the source fallback tiers (§3a) if Screener fails or is missing a specific filing type.
 2. Decide the tier set based on company profile (§5).
 3. `WebFetch` each PDF in the set. If a fetch fails or 404s, note it in the output's source-of-inputs line and continue — do not block.
-4. Scrape the Screener page itself for the 10-yr quant tables (P&L, BS, CF, ratios, quarterly trend, shareholding). No login needed — these are rendered in the public HTML.
+4. **Run `scripts/parse_screener.py <TICKER> --save`** (preferred) — fetches the consolidated page (with standalone fallback) and writes structured JSON to `<TICKER>/screener-data.json`. This is the primary data source for downstream analysis: top ratios (Mcap/CMP/PE/PB/ROCE/ROE/Div Yield), 10-year P&L/BS/CF/Ratios, quarterly results, shareholding (yearly + quarterly), pros/cons, compounded growth ranges, sector taxonomy, benchmark membership, exchange codes, all 15 years of AR URLs, all listed concall transcript+PPT+AI-summary URLs, credit rating updates, and recent announcements with their AI-generated summaries. The script is deterministic HTML parsing — faster, cheaper, and more accurate than markdown extraction.
+   - If `parse_screener.py` fails entirely (HTML structure changed / network error), fall back to `WebFetch` with a markdown-extraction prompt to produce `screener-snapshot.md` instead. Note the substitution in INDEX.md.
+   - Requires beautifulsoup4. First-time setup: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`. Then run with `.venv/bin/python scripts/parse_screener.py ...`.
+5. **Slice each fetched PDF** by running `python scripts/slice_pdf.py <pdf>` for each file >30 pages. Output goes to `<TICKER>/extracts/`. Inspect the script's JSON for `sections_suspicious` / `sections_missing`; fall back to the manual flow in `references/pdf-slicing.md` only for problem sections. Update INDEX.md with the extract list. Without slicing, every downstream query reads ~80% boilerplate.
+
+### 3a. Source fallback tiers (where to find filing URLs)
+
+Use these tiers in order when Screener doesn't list a file or the page fails entirely. Move to the next tier only when the previous yields no usable links.
+
+**Source Tier 1 — Screener.in**
+
+- `WebFetch https://www.screener.in/company/<TICKER>/consolidated/`
+- If consolidated fails or returns nothing, retry with `https://www.screener.in/company/<TICKER>/`
+- Extract all filing links (concalls, ARs, presentations). These typically point directly to BSE/NSE archive URLs.
+
+**Source Tier 2 — Official exchange filings (when Screener fails)**
+
+Use `WebSearch` with targeted queries. Only accept links from official sources:
+- `bseindia.com`
+- `nseindia.com` / `nsearchives.nseindia.com`
+- The company's own investor relations page
+
+Example queries (adapt to the filing type needed):
+- `"<COMPANY_NAME>" conference call transcript site:bseindia.com`
+- `"<COMPANY_NAME>" annual report site:nseindia.com`
+- `"<COMPANY_NAME>" investor relations site:<company_website>`
+
+Label anything from this tier as `[BSE-direct]` or `[NSE-direct]` in INDEX.md.
+
+**Source Tier 3 — Third-party aggregators (last resort)**
+
+If Tiers 1 and 2 yield nothing, use `WebSearch`:
+- `"<COMPANY_NAME>" concall transcript <CURRENT_YEAR>`
+- `"<TICKER>" annual report <CURRENT_YEAR>`
+
+Accept links from: trendlyne.com, marketscreener.com, alphaspread.com, gurufocus.com.
+
+**Mandatory:** label every file sourced this way as `[Third-party]` in both INDEX.md and the report. Third-party sources may be incomplete, delayed, or reformatted — weight claims from them lower than primary filings.
 
 ## 4. The standard set
 
@@ -88,9 +125,9 @@ Pull them only if a specific thesis question requires the documentary trail.
 ## 7. Budget & failure modes
 
 - **Cap at ~8 PDFs per analysis.** Signal-density flattens fast — beyond 8 documents you're re-reading the same story.
-- **If Screener returns nothing useful** (rare — usually only for very illiquid SMEs), fall back to BSE corporate filings or the company's investor relations page. Note the substitution.
-- **If a fetch fails**, name it in the report's source-of-inputs line. Do not silently substitute a web search for what should have been a primary filing.
-- **If the company is not on Screener at all** (extremely rare), tell the user and ask whether they want to provide files manually.
+- **If Screener returns nothing useful** (rare — usually only for very illiquid SMEs), run the source fallback tiers from §3a in order: official BSE/NSE search (Tier 2), then third-party aggregators (Tier 3). Note the substitution and label the source in INDEX.md.
+- **If a fetch fails**, name it in the report's source-of-inputs line. Do not silently substitute a web search for what should have been a primary filing — use the structured source fallback (§3a) instead.
+- **If the company is not on Screener at all** (extremely rare), go straight to Source Tier 2 (BSE/NSE search). If that also yields nothing, tell the user and ask whether they want to provide files manually.
 
 ## 8. Source-labeling rule
 
@@ -100,6 +137,8 @@ Every claim in the final report must trace to a source. Use these tags inline or
 - `[Concall-Q4FY26]` — Concall transcript for the quarter noted
 - `[IP-Q3FY26]` — Investor presentation for the quarter noted
 - `[Screener-quant]` — 10-yr table or ratio scraped from the Screener page
+- `[BSE-direct]` / `[NSE-direct]` — Filing found via exchange search (Source Tier 2), not via Screener
+- `[Third-party]` — Filing sourced from trendlyne, marketscreener, etc. (Source Tier 3); weight lower than primary filings
 - `[Web-search]` — Used only for very recent news/regulatory actions postdating the latest filing
 - `[Inferred]` — Analytical inference, not directly stated in any source
 
@@ -139,7 +178,7 @@ Save fetched files to a per-ticker folder so repeat analyses don't re-fetch.
 - Concalls: `concall-Q<N>FY<YY>-<YYYY-MM-DD>.pdf` (date = filing/call date)
 - Presentations: `IP-Q<N>FY<YY>-<YYYY-MM-DD>.pdf`
 - Announcements: `<short-type>-<YYYY-MM-DD>.pdf`
-- Screener page scrape: `screener-snapshot.md` (always overwrite — latest pull wins)
+- Screener page parse: `screener-data.json` (always overwrite — latest pull wins). `screener-snapshot.md` is the legacy fallback when the parser can't run.
 
 ### INDEX.md
 

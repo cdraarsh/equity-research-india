@@ -13,7 +13,11 @@ This skill turns annual reports, quarterly results, and concall transcripts into
 
 **Read the documents — don't guess from memory.** If the user uploaded files, the analysis must be grounded in those files. Quote sparingly but specifically: "Management said in Q2 FY26 concall that they expect 14-15% EBITDA margin by FY27, vs ~11% currently." Do not invent numbers. If you don't have a number from the filings, say so explicitly rather than estimating.
 
-**When the user names a stock without uploads.** Don't ask for PDFs — auto-fetch from `screener.in/company/<TICKER>/` using the playbook in `references/screener-auto-fetch.md`. Always confirm the file set with the user before fetching, save pulls to `~/Documents/equity-research/<TICKER>/` per the folder layout in that playbook, and check the cache before re-fetching. Use web_search only for very recent news / regulatory actions that postdate the latest filing on Screener. Do NOT use web_search for historical financials, segment trajectory, RPT, contingent liab, CARO, auditor commentary, or anything that should come from primary filings. Always source-label every claim in the output (`[AR-FY25]`, `[Concall-Q4FY26]`, `[Screener-quant]`, `[Web-search]`, `[Inferred]`).
+**When the user names a stock without uploads.** Don't ask for PDFs — auto-fetch from `screener.in/company/<TICKER>/` using the playbook in `references/screener-auto-fetch.md`. Always confirm the file set with the user before fetching, save pulls to `~/Documents/equity-research/<TICKER>/` per the folder layout in that playbook, and check the cache before re-fetching.
+
+**Always run `scripts/parse_screener.py <TICKER> --save` first.** It writes structured JSON to `<TICKER>/screener-data.json` covering: top ratios (Mcap, CMP, PE, PB, ROCE, ROE, Dividend Yield), 10-yr P&L/BS/CF/Ratios, quarterly results, shareholding pattern, sector taxonomy (4 levels), benchmark membership, exchange codes, all 15 years of AR URLs, every listed concall (transcript + PPT + AI-summary URLs), credit rating updates, recent announcements with AI-generated summaries, and Screener's machine-generated pros/cons. Read this JSON instead of asking the user to paste numbers — it's the canonical financial-data source.
+
+Use web_search only for very recent news / regulatory actions that postdate the latest filing on Screener. Do NOT use web_search for historical financials, segment trajectory, RPT, contingent liab, CARO, auditor commentary, or anything that should come from primary filings. Always source-label every claim in the output (`[AR-FY25]`, `[Concall-Q4FY26]`, `[Screener-quant]`, `[Web-search]`, `[Inferred]`).
 
 **Resolve conflicts between sources by type:**
 - **Forward-looking statements** (guidance, capex plans, demand commentary): weight by recency — latest concall > latest investor presentation > latest QR commentary > AR Director's Report. The world moves between an AR (often 6+ months old) and the latest concall.
@@ -32,9 +36,17 @@ This skill turns annual reports, quarterly results, and concall transcripts into
 
 ### 0. Auto-fetch the standard file set (when no uploads)
 
-If the user named an Indian listed company without attaching files, run the Screener auto-fetch playbook in `references/screener-auto-fetch.md` before anything else. The playbook covers: confirming the file set with the user, tier-based selection adapted to company size/maturity, the `~/Documents/equity-research/<TICKER>/` folder layout, INDEX.md generation, and the 7-day cache rule. Once files are in the ticker folder, proceed to Step 1 with them as inputs.
+If the user named an Indian listed company without attaching files, run the Screener auto-fetch playbook in `references/screener-auto-fetch.md` before anything else. The playbook covers: confirming the file set with the user, tier-based selection adapted to company size/maturity, the `~/Documents/equity-research/<TICKER>/` folder layout, INDEX.md generation, and the 7-day cache rule. Once files are in the ticker folder, proceed to Step 0.5.
 
-If the user already uploaded files, skip Step 0 and go straight to Step 1.
+If the user already uploaded files, skip Step 0 and go straight to Step 0.5.
+
+### 0.5. Slice large PDFs into sections (do not feed whole PDFs)
+
+Before deep-reading any document over ~30 pages, run `scripts/slice_pdf.py <pdf>` for each fetched file (auto-detects AR vs concall from filename). It produces per-section extracts under `~/Documents/equity-research/<TICKER>/extracts/` (e.g., `AR-FY25-mdna.txt`, `AR-FY25-caro.txt`, `AR-FY25-rpt.txt`) and, for concalls, per-question Q&A turns plus an `index.json` skeleton.
+
+Always inspect the script's JSON output — check `sections_suspicious` and `sections_missing`. When a section is oversized or wasn't found, follow the manual fallback in `references/pdf-slicing.md` for that section only. After concall slicing, fill in the empty `topics` arrays in `index.json` by reading each turn once (3–5 words per topic).
+
+Why this matters: a 300-page AR is 50–80k tokens, but the actually-useful content is closer to 10k. Slice once at fetch time, save to disk, retrieve only what the current question needs. Skip slicing for documents under ~30 pages (most concalls, single-quarter QRs, IPs) — feed those whole.
 
 ### 1. Inventory the inputs
 
@@ -67,6 +79,12 @@ If the sector isn't on this list, identify the 3-4 metrics that drive economics 
 ### 3. Extract the right things from each input
 
 What to extract is document-specific. See `references/extraction-checklist.md` for the per-document checklist (AR, QR, concall, investor presentation). Read that file when you're about to start a deep analysis — it'll save you from missing standard items.
+
+**Read from the sliced extracts, not the raw PDFs.** Step 0.5 produced per-section files under `~/Documents/equity-research/<TICKER>/extracts/`. The retrieval map in `references/pdf-slicing.md` (under "Retrieval rules") tells you which extracts to pull for each master-report section — e.g., red flags read from `AR-*-caro.txt`, `AR-*-rpt.txt`, `AR-*-contingent-liab.txt`; management assessment reads from topic-matched concall Q&A turns; financial trajectory reads from `AR-*-segments.txt` plus `screener-snapshot.md`. Only fall back to whole-PDF reads when an extract is missing or the question genuinely needs cross-section synthesis.
+
+**Delegate mechanical extractions to Haiku subagents (default path).** For the red-flags pass (CARO, RPT, contingent liab, AOC-1, ESOP) and concall topic-keying, spawn parallel Haiku subagents that return structured JSON. This is the default — it cuts cost (Haiku vs Sonnet), cuts wallclock (parallel vs sequential), and keeps the main session's context clean. See `references/subagent-extraction.md` for the schemas, invocation pattern, parallelism cap (10 in flight), and merge protocol.
+
+Fall back to inline reading only when (a) the Task tool isn't available in the current environment, or (b) a subagent returns invalid JSON twice for a specific extraction. The fallback path is the retrieval map in `references/pdf-slicing.md`.
 
 ### 4. Run the management quality lens
 

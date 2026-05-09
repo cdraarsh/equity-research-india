@@ -2,6 +2,8 @@
 
 The goal here is to be systematic so nothing important gets missed. Don't dump everything — extract, then synthesize in the master report.
 
+**Pair this with `pdf-slicing.md`.** This file describes *what* to extract; `pdf-slicing.md` describes *how* to slice the PDF first so you're reading targeted ~5k-token sections rather than feeding whole 300-page ARs. Slice at fetch time, then run this checklist against the sliced extracts.
+
 ## Annual Report (AR)
 
 The AR is the densest document. Sections that matter most:
