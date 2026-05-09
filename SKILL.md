@@ -15,7 +15,14 @@ This skill turns annual reports, quarterly results, and concall transcripts into
 
 **When the user names a stock without uploads.** Don't ask for PDFs — auto-fetch from `screener.in/company/<TICKER>/` using the playbook in `references/screener-auto-fetch.md`. Always confirm the file set with the user before fetching, save pulls to `~/Documents/equity-research/<TICKER>/` per the folder layout in that playbook, and check the cache before re-fetching.
 
-**Always run `scripts/parse_screener.py <TICKER> --save` first.** It writes structured JSON to `<TICKER>/screener-data.json` covering: top ratios (Mcap, CMP, PE, PB, ROCE, ROE, Dividend Yield), 10-yr P&L/BS/CF/Ratios, quarterly results, shareholding pattern, sector taxonomy (4 levels), benchmark membership, exchange codes, all 15 years of AR URLs, every listed concall (transcript + PPT + AI-summary URLs), credit rating updates, recent announcements with AI-generated summaries, and Screener's machine-generated pros/cons. Read this JSON instead of asking the user to paste numbers — it's the canonical financial-data source.
+**Always run the Screener parser first** (after running the Step 0.0 bootstrap):
+
+```bash
+~/.claude/skills/equity-research-india/.venv/bin/python \
+  ~/.claude/skills/equity-research-india/scripts/parse_screener.py <TICKER> --save
+```
+
+It writes structured JSON to `~/Documents/equity-research/<TICKER>/screener-data.json` covering: top ratios (Mcap, CMP, PE, PB, ROCE, ROE, Dividend Yield), 10-yr P&L/BS/CF/Ratios, quarterly results, shareholding pattern, sector taxonomy (4 levels), benchmark membership, exchange codes, all 15 years of AR URLs, every listed concall (transcript + PPT + AI-summary URLs), credit rating updates, recent announcements with AI-generated summaries, and Screener's machine-generated pros/cons. Read this JSON instead of asking the user to paste numbers — it's the canonical financial-data source.
 
 Use web_search only for very recent news / regulatory actions that postdate the latest filing on Screener. Do NOT use web_search for historical financials, segment trajectory, RPT, contingent liab, CARO, auditor commentary, or anything that should come from primary filings. Always source-label every claim in the output (`[AR-FY25]`, `[Concall-Q4FY26]`, `[Screener-quant]`, `[Web-search]`, `[Inferred]`).
 
@@ -34,6 +41,30 @@ Use web_search only for very recent news / regulatory actions that postdate the 
 
 ## Workflow
 
+### 0.0. Bootstrap (idempotent — runs only on first use)
+
+Before any other step that uses the helper scripts, run this bootstrap once. It's safe to run repeatedly — the venv check makes it a no-op after the first install.
+
+```bash
+# Create the venv and install bs4 if not already done
+[ -d ~/.claude/skills/equity-research-india/.venv ] || (cd ~/.claude/skills/equity-research-india && python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt)
+
+# Verify pdftotext is available (required for Step 0.5)
+command -v pdftotext >/dev/null || echo "WARNING: pdftotext not found. Install with: brew install poppler. Step 0.5 will fail without it; you'll have to feed whole PDFs."
+```
+
+If `pdftotext` is missing the bootstrap prints a warning but doesn't block — the parse_screener step (0) only needs the venv. Slicing (0.5) silently degrades to "feed whole PDFs" if pdftotext is unavailable.
+
+**All subsequent script invocations use absolute paths** so they work regardless of the current working directory:
+
+```bash
+~/.claude/skills/equity-research-india/.venv/bin/python \
+  ~/.claude/skills/equity-research-india/scripts/parse_screener.py <TICKER> --save
+
+~/.claude/skills/equity-research-india/.venv/bin/python \
+  ~/.claude/skills/equity-research-india/scripts/slice_pdf.py <pdf>
+```
+
 ### 0. Auto-fetch the standard file set (when no uploads)
 
 If the user named an Indian listed company without attaching files, run the Screener auto-fetch playbook in `references/screener-auto-fetch.md` before anything else. The playbook covers: confirming the file set with the user, tier-based selection adapted to company size/maturity, the `~/Documents/equity-research/<TICKER>/` folder layout, INDEX.md generation, and the 7-day cache rule. Once files are in the ticker folder, proceed to Step 0.5.
@@ -42,7 +73,14 @@ If the user already uploaded files, skip Step 0 and go straight to Step 0.5.
 
 ### 0.5. Slice large PDFs into sections (do not feed whole PDFs)
 
-Before deep-reading any document over ~30 pages, run `scripts/slice_pdf.py <pdf>` for each fetched file (auto-detects AR vs concall from filename). It produces per-section extracts under `~/Documents/equity-research/<TICKER>/extracts/` (e.g., `AR-FY25-mdna.txt`, `AR-FY25-caro.txt`, `AR-FY25-rpt.txt`) and, for concalls, per-question Q&A turns plus an `index.json` skeleton.
+Before deep-reading any document over ~30 pages, run the slicer on each fetched file (auto-detects AR vs concall from filename):
+
+```bash
+~/.claude/skills/equity-research-india/.venv/bin/python \
+  ~/.claude/skills/equity-research-india/scripts/slice_pdf.py <pdf>
+```
+
+It produces per-section extracts under `~/Documents/equity-research/<TICKER>/extracts/` (e.g., `AR-FY25-mdna.txt`, `AR-FY25-caro.txt`, `AR-FY25-rpt.txt`) and, for concalls, per-question Q&A turns plus an `index.json` skeleton.
 
 Always inspect the script's JSON output — check `sections_suspicious` and `sections_missing`. When a section is oversized or wasn't found, follow the manual fallback in `references/pdf-slicing.md` for that section only. After concall slicing, fill in the empty `topics` arrays in `index.json` by reading each turn once (3–5 words per topic).
 

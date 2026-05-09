@@ -34,10 +34,26 @@ Reasons to confirm rather than silent-fetch:
 1. `WebFetch` the Screener page first to enumerate available files. The page lists ARs, concall transcripts, investor presentations, and announcements with their actual URLs (which point to NSE/BSE archives). Use the source fallback tiers (§3a) if Screener fails or is missing a specific filing type.
 2. Decide the tier set based on company profile (§5).
 3. `WebFetch` each PDF in the set. If a fetch fails or 404s, note it in the output's source-of-inputs line and continue — do not block.
-4. **Run `scripts/parse_screener.py <TICKER> --save`** (preferred) — fetches the consolidated page (with standalone fallback) and writes structured JSON to `<TICKER>/screener-data.json`. This is the primary data source for downstream analysis: top ratios (Mcap/CMP/PE/PB/ROCE/ROE/Div Yield), 10-year P&L/BS/CF/Ratios, quarterly results, shareholding (yearly + quarterly), pros/cons, compounded growth ranges, sector taxonomy, benchmark membership, exchange codes, all 15 years of AR URLs, all listed concall transcript+PPT+AI-summary URLs, credit rating updates, and recent announcements with their AI-generated summaries. The script is deterministic HTML parsing — faster, cheaper, and more accurate than markdown extraction.
-   - If `parse_screener.py` fails entirely (HTML structure changed / network error), fall back to `WebFetch` with a markdown-extraction prompt to produce `screener-snapshot.md` instead. Note the substitution in INDEX.md.
-   - Requires beautifulsoup4. First-time setup: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`. Then run with `.venv/bin/python scripts/parse_screener.py ...`.
-5. **Slice each fetched PDF** by running `python scripts/slice_pdf.py <pdf>` for each file >30 pages. Output goes to `<TICKER>/extracts/`. Inspect the script's JSON for `sections_suspicious` / `sections_missing`; fall back to the manual flow in `references/pdf-slicing.md` only for problem sections. Update INDEX.md with the extract list. Without slicing, every downstream query reads ~80% boilerplate.
+4. **Run the Screener parser** (preferred) — fetches the consolidated page (with standalone fallback) and writes structured JSON to `~/Documents/equity-research/<TICKER>/screener-data.json`:
+
+   ```bash
+   ~/.claude/skills/equity-research-india/.venv/bin/python \
+     ~/.claude/skills/equity-research-india/scripts/parse_screener.py <TICKER> --save
+   ```
+
+   This is the primary data source for downstream analysis: top ratios (Mcap/CMP/PE/PB/ROCE/ROE/Div Yield), 10-year P&L/BS/CF/Ratios, quarterly results, shareholding (yearly + quarterly), pros/cons, compounded growth ranges, sector taxonomy, benchmark membership, exchange codes, all 15 years of AR URLs, all listed concall transcript+PPT+AI-summary URLs, credit rating updates, and recent announcements with their AI-generated summaries. The script is deterministic HTML parsing — faster, cheaper, and more accurate than markdown extraction.
+
+   - If the parser fails entirely (HTML structure changed / network error), fall back to `WebFetch` with a markdown-extraction prompt to produce `screener-snapshot.md` instead. Note the substitution in INDEX.md.
+   - First-time setup is handled by the Step 0.0 bootstrap in `SKILL.md`. If you see `ModuleNotFoundError: bs4`, the bootstrap didn't run — execute it now.
+
+5. **Slice each fetched PDF** by running the slicer on each file >30 pages:
+
+   ```bash
+   ~/.claude/skills/equity-research-india/.venv/bin/python \
+     ~/.claude/skills/equity-research-india/scripts/slice_pdf.py <pdf>
+   ```
+
+   Output goes to `~/Documents/equity-research/<TICKER>/extracts/`. Inspect the script's JSON for `sections_suspicious` / `sections_missing`; fall back to the manual flow in `references/pdf-slicing.md` only for problem sections. Update INDEX.md with the extract list. Without slicing, every downstream query reads ~80% boilerplate.
 
 ### 3a. Source fallback tiers (where to find filing URLs)
 

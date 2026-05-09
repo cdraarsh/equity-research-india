@@ -12,18 +12,30 @@ After fetching a PDF, slice it into the analytically relevant sections **before*
 
 Run the helper script on every PDF >30 pages. It handles `pdftotext` conversion, heading detection, section extraction for ARs, and Q&A turn splitting + indexing for concalls.
 
+Before first use, run the Step 0.0 bootstrap from `SKILL.md` (creates the venv, verifies pdftotext). After that, invoke with absolute paths so it works from any working directory:
+
 ```bash
+SLICE=~/.claude/skills/equity-research-india/.venv/bin/python\ ~/.claude/skills/equity-research-india/scripts/slice_pdf.py
+# (the SLICE alias above is for readability only — Bash tool calls don't persist shell state, so the model
+#  should expand the full path inline in each invocation)
+
 # AR / RHP / DRHP — auto-detected from filename
-python scripts/slice_pdf.py ~/Documents/equity-research/<TICKER>/annual-reports/AR-FY25.pdf
+~/.claude/skills/equity-research-india/.venv/bin/python \
+  ~/.claude/skills/equity-research-india/scripts/slice_pdf.py \
+  ~/Documents/equity-research/<TICKER>/annual-reports/AR-FY25.pdf
 
 # Concall — auto-detected from filename
-python scripts/slice_pdf.py ~/Documents/equity-research/<TICKER>/concalls/concall-Q4FY26-2026-04-27.pdf
+~/.claude/skills/equity-research-india/.venv/bin/python \
+  ~/.claude/skills/equity-research-india/scripts/slice_pdf.py \
+  ~/Documents/equity-research/<TICKER>/concalls/concall-Q4FY26-2026-04-27.pdf
 
 # Force the type if filename doesn't make it obvious
-python scripts/slice_pdf.py ~/Downloads/some-file.pdf --type ar
+~/.claude/skills/equity-research-india/.venv/bin/python \
+  ~/.claude/skills/equity-research-india/scripts/slice_pdf.py ~/Downloads/some-file.pdf --type ar
 
-# Dry-run to inspect boundary candidates without writing files (recommended first pass)
-python scripts/slice_pdf.py <pdf> --dry-run
+# Dry-run to inspect boundary candidates without writing files (recommended first pass on a new ticker)
+~/.claude/skills/equity-research-india/.venv/bin/python \
+  ~/.claude/skills/equity-research-india/scripts/slice_pdf.py <pdf> --dry-run
 ```
 
 The script prints a JSON summary to stdout listing every section it wrote, the line ranges, whether each match was a confident heading-shaped hit (`heading_match: true`) or a fallback to last text mention (`heading_match: false`), the header text it landed on, and any sections that were missing or look suspicious (oversized).
